@@ -1,0 +1,301 @@
+
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Fransa Kaşifi - Pro</title>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+    <style>
+        :root { --primary: #002395; --white: #ffffff; --red: #ed2939; --gold: #f1c40f; }
+        * { box-sizing: border-box; }
+        body, html { margin: 0; padding: 0; height: 100%; font-family: 'Poppins', sans-serif; background: #1a1a1a; display: flex; justify-content: center; overflow: hidden; }
+        
+        #game-container {
+            width: 100%; max-width: 450px; height: 100vh;
+            background: url('12.jpg') center/cover;
+            position: relative; overflow: hidden; display: flex; flex-direction: column;
+        }
+
+        .glass-overlay { position: absolute; inset: 0; background: rgba(0, 0, 0, 0.55); backdrop-filter: blur(4px); }
+
+        .screen { position: relative; z-index: 5; width: 100%; height: 100%; display: none; flex-direction: column; align-items: center; padding: 15px; color: white; text-align: center; }
+        .screen.active { display: flex; }
+
+        /* Başlangıç */
+        .big-title { font-size: 42px; font-weight: 800; margin-top: 30px; line-height: 1.1; text-shadow: 3px 3px 0px var(--primary); }
+        .cosku-text { font-size: 28px; color: var(--gold); font-weight: 800; margin: 20px 0 5px 0; text-transform: uppercase; animation: pulse 1.5s infinite; }
+        
+        @keyframes pulse { 0% { transform: scale(1); } 50% { transform: scale(1.1); } 100% { transform: scale(1); } }
+
+        input { width: 85%; padding: 15px; border-radius: 30px; border: 3px solid var(--gold); margin-bottom: 15px; font-size: 18px; text-align: center; outline: none; background: rgba(255,255,255,0.9); }
+
+        /* Üst Bar */
+        .header { width: 100%; display: flex; justify-content: space-between; padding: 12px; background: rgba(0,0,0,0.8); border-radius: 15px; margin-bottom: 10px; font-weight: 600; border-bottom: 3px solid var(--primary); }
+        
+        /* Kalp Animasyon Alanı */
+        #heart-anim-overlay {
+            position: absolute; inset: 0; z-index: 100;
+            display: none; justify-content: center; align-items: center;
+            background: rgba(0,0,0,0.4);
+        }
+        .breaking-heart {
+            font-size: 80px; color: var(--red);
+            animation: breakAndFade 1.2s forwards;
+        }
+        @keyframes breakAndFade {
+            0% { transform: scale(0); opacity: 0; }
+            30% { transform: scale(1.2); opacity: 1; }
+            50% { transform: scale(1); content: "\f7a9"; } /* Kırık kalp ikonu şuna dönüşecek */
+            100% { transform: translateY(100px) rotate(20deg); opacity: 0; }
+        }
+
+        /* Soru Kartı */
+        .q-card { background: rgba(255,255,255,0.98); color: #333; width: 100%; border-radius: 25px; padding: 15px; box-shadow: 0 15px 35px rgba(0,0,0,0.5); }
+        .q-img-container { width: 100%; background: #f0f0f0; border-radius: 15px; margin-bottom: 12px; display: flex; justify-content: center; align-items: center; overflow: hidden; height: 160px; }
+        .q-img { max-width: 100%; max-height: 160px; object-fit: contain; }
+
+        .options-box { width: 100%; display: flex; flex-direction: column; gap: 8px; }
+        .option { 
+            background: white; color: #333; width: 100%; padding: 12px; border-radius: 15px; 
+            font-weight: 700; cursor: pointer; transition: 0.2s; border: 2px solid #ddd; 
+            display: flex; align-items: center; text-align: left; font-size: 14px;
+        }
+        .option img { width: 50px; height: 35px; border-radius: 6px; margin-right: 12px; object-fit: cover; }
+        
+        /* Cevap Renkleri */
+        .option.correct { background: #2ecc71 !important; color: white !important; border-color: #27ae60 !important; }
+        .option.wrong { background: #e74c3c !important; color: white !important; border-color: #c0392b !important; }
+        
+        .opt-letter { background: var(--primary); color: white; width: 26px; height: 26px; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin-right: 10px; flex-shrink: 0; }
+
+        /* Eşleştirme */
+        .matching-container { display: flex; gap: 8px; width: 100%; }
+        .match-column { display: flex; flex-direction: column; gap: 6px; flex: 1; }
+        .match-item { padding: 10px; background: white; border: 2px solid var(--primary); border-radius: 12px; cursor: pointer; font-weight: 800; font-size: 11px; color: #333; height: 45px; display: flex; align-items: center; justify-content: center; }
+        .match-item.selected { background: var(--gold); color: white; }
+        .match-item.paired { background: #2ecc71; color: white; opacity: 0.8; pointer-events: none; }
+
+        .btn-main { background: var(--gold); color: #000; padding: 18px 50px; border-radius: 40px; border: none; font-size: 20px; font-weight: 900; cursor: pointer; box-shadow: 0 6px 0 #b8860b; }
+        
+        #leader-list { background: rgba(255,255,255,0.15); width: 100%; border-radius: 15px; padding: 12px; margin: 10px 0; font-size: 13px; }
+    </style>
+</head>
+<body>
+
+<div id="game-container">
+    <div class="glass-overlay"></div>
+
+    <!-- Kalp Kırılma Animasyon Katmanı -->
+    <div id="heart-anim-overlay">
+        <i class="fa-solid fa-heart-crack breaking-heart"></i>
+    </div>
+
+    <!-- GİRİŞ -->
+    <div id="start-screen" class="screen active">
+        <h1 class="big-title">FRANSA<br>KAŞİFİ</h1>
+        <div class="cosku-text">C'EST PARTI !PRÊTES POUR L'AVENTURE ? </div>
+        <p style="margin-bottom: 20px; font-weight: 600;">(HADİ BAŞLAYALIM ! MACERAYA HAZIR MISIN)</p>
+        <input type="text" id="p-name" placeholder="İsmini Yaz...">
+        <button class="btn-main" onclick="startGame()">BAŞLA!</button>
+    </div>
+
+    <!-- OYUN -->
+    <div id="quiz-screen" class="screen">
+        <div class="header">
+            <span id="display-n">...</span>
+            <span id="display-s">0 Puan</span>
+            <div id="hearts"></div>
+        </div>
+        <div class="q-card">
+            <div class="q-img-container" id="img-frame">
+                <img id="q-image" class="q-img" src="">
+            </div>
+            <div id="q-text" style="font-weight: 800; margin-bottom: 12px; font-size: 15px;">Soru...</div>
+            <div id="options-area" class="options-box"></div>
+        </div>
+    </div>
+
+    <!-- SONUÇ -->
+    <div id="end-screen" class="screen">
+        <h2 id="funny-title" style="color: var(--gold); font-size: 26px;">Sonuç</h2>
+        <p id="funny-msg" style="font-weight: 600; font-size: 14px;"></p>
+        <h1 id="final-score" style="font-size: 50px; text-shadow: 3px 3px var(--primary);">0</h1>
+        <div id="leader-list"></div>
+        <button class="btn-main" onclick="location.reload()">TEKRAR</button>
+    </div>
+</div>
+
+<script>
+    const questions = [
+        { q: "1. Aşağıdaki yapılardan hangisi Paris’te değildir?", a: ["Eyfel Kulesi", "Louvre Müzesi", "Mont Saint-Michel Manastırı", "Notre-Dame Katedrali"], c: 2, type: "visual_opts", imgs: ["13.jpg", "14.jpg", "15.jpg", "16.jpg"] },
+        { q: "2. Paris’teki en büyük havalimanının adı nedir?", a: ["Orly", "Lyon", "Charles de Gaulle", "Nice"], c: 2, img: "17.jpg" },
+        { q: "3. Charles de Gaulle kimdir?", a: ["Devlet adamı", "Ressam", "Şair", "Müzisyen"], c: 0, img: "18.jpg" },
+        { q: "4. Bordeaux neyiyle ünlüdür?", a: ["Havacılık", "Moda", "Şarap Üretimi", "Film"], c: 2, img: "19.jpg" },
+        { q: "5. Cannes’in ünlü festivali hangisidir?", a: ["Oktoberfest", "Film Festivali", "Venedik", "Rio"], c: 1, img: "20.jpg" },
+        { q: "6. Fransız Devrimi hangi yılda başladı?", a: ["1492", "1789", "1914", "1815"], c: 1, img: "21.jpg" },
+        { q: "7. Fransız mutfağına ait olanı seç?", a: ["Sushi", "Pizza", "Ratatouille", "Taco"], c: 2, img: "22.jpg" },
+        { q: "8. Toulouse hangi alanda öne çıkar?", a: ["Sinema", "Havacılık", "Tarım", "Maden"], c: 1, img: "23.jpg" },
+        { q: "9. Gastronomi (Yemek) şehri hangisidir?", a: ["Nice", "Lyon", "Paris", "Toulouse"], c: 1, img: "24.jpg" },
+        { q: "10. Hangisi Fransız araba markasıdır?", a: ["BMW", "Renault", "Fiat", "Toyota"], c: 1, img: "25.jpg" },
+        { q: "11. Napoleon Bonaparte nerede doğmuştur?", a: ["Paris", "Korsika", "Marsilya", "Lyon"], c: 1, img: "26.jpg" },
+        { 
+            q: "12. Şehirleri sembollerle eşleştir!", 
+            type: "matching",img: "27.png",
+            pairs: [ {l:"Paris", r:"Eyfel"}, {l:"Cannes", r:"Film"}, {l:"Bordeaux", r:"Şarap"}, {l:"Toulouse", r:"Uçak"} ]
+        },
+        { 
+            q: "13. Lezzetleri eşleştir!", 
+            type: "matching",img: "28.png",
+            pairs: [ {l:"Croissant", r:"Hamur"}, {l:"Ratatouille", r:"Sebze"}, {l:"Escargot", r:"Salyangoz"}, {l:"Macaron", r:"Kurabiye"} ]
+        }
+    ];
+
+    let currentQ = 0; let score = 0; let lives = 3; let pName = "";
+    let selectedLeft = null; let matchedCount = 0;
+
+    function startGame() {
+        pName = document.getElementById('p-name').value.trim() || "Gezgin";
+        document.getElementById('display-n').innerText = pName;
+        showScreen('quiz-screen');
+        loadQuestion();
+    }
+
+    function loadQuestion() {
+        updateHearts();
+        const data = questions[currentQ];
+        const area = document.getElementById('options-area');
+        const mainImg = document.getElementById('q-image');
+        const imgFrame = document.getElementById('img-frame');
+        
+        document.getElementById('q-text').innerText = data.q;
+        area.innerHTML = "";
+        
+        if(data.type === "visual_opts") {
+            imgFrame.style.display = "none";
+            data.a.forEach((opt, i) => {
+                const b = document.createElement('div'); b.className = 'option';
+                b.innerHTML = `<img src="${data.imgs[i]}"><div class="opt-letter">${String.fromCharCode(65+i)}</div><span>${opt}</span>`;
+                b.onclick = () => check(i);
+                area.appendChild(b);
+            });
+        } else if(data.type === "matching") {
+            imgFrame.style.display = "flex";
+            mainImg.src = data.img;
+            const cont = document.createElement('div'); cont.className = 'matching-container';
+            const leftCol = document.createElement('div'); leftCol.className = 'match-column';
+            const rightCol = document.createElement('div'); rightCol.className = 'match-column';
+            
+            const lefts = data.pairs.map(p => p.l).sort(() => Math.random() - 0.5);
+            const rights = data.pairs.map(p => p.r).sort(() => Math.random() - 0.5);
+
+            lefts.forEach(t => {
+                const d = document.createElement('div'); d.className = 'match-item'; d.innerText = t;
+                d.onclick = () => { selectedLeft = {el:d, val:t}; document.querySelectorAll('.match-column:first-child .match-item').forEach(i=>i.classList.remove('selected')); d.classList.add('selected'); };
+                leftCol.appendChild(d);
+            });
+            rights.forEach(t => {
+                const d = document.createElement('div'); d.className = 'match-item'; d.innerText = t;
+                d.onclick = () => { 
+                    if(!selectedLeft) return;
+                    const pair = data.pairs.find(p => p.l === selectedLeft.val);
+                    if(pair.r === t) { d.classList.add('paired'); selectedLeft.el.classList.add('paired'); matchedCount++; score += 30; confetti({particleCount: 20}); }
+                    else { triggerWrong(); }
+                    selectedLeft = null;
+                    if(matchedCount === 4) { matchedCount = 0; setTimeout(next, 1000); }
+                };
+                rightCol.appendChild(d);
+            });
+            cont.append(leftCol, rightCol); area.appendChild(cont);
+        } else {
+            imgFrame.style.display = "flex";
+            mainImg.src = data.img || "";
+            data.a.forEach((opt, i) => {
+                const b = document.createElement('div'); b.className = 'option';
+                b.innerHTML = `<div class="opt-letter">${String.fromCharCode(65+i)}</div><span>${opt}</span>`;
+                b.onclick = () => check(i);
+                area.appendChild(b);
+            });
+        }
+    }
+
+    function check(idx) {
+        const correctIdx = questions[currentQ].c;
+        const opts = document.querySelectorAll('.option');
+
+        if(idx === correctIdx) { 
+            opts[idx].classList.add('correct');
+            score += 100; 
+            confetti({ particleCount: 150, spread: 70, origin: { y: 0.6 } });
+        } else { 
+            opts[idx].classList.add('wrong');
+            opts[correctIdx].classList.add('correct'); // Yanlış bilince doğrunun yeşil olması
+            triggerWrong();
+        }
+        
+        setTimeout(() => {
+            if(lives <= 0) endGame(); else next();
+        }, 1500);
+    }
+
+    function triggerWrong() {
+        lives--;
+        const anim = document.getElementById('heart-anim-overlay');
+        anim.style.display = 'flex';
+        setTimeout(() => { anim.style.display = 'none'; }, 1200);
+        updateHearts();
+    }
+
+    function next() {
+        currentQ++;
+        if(currentQ < questions.length) loadQuestion(); else endGame();
+    }
+
+    function updateHearts() {
+        const h = document.getElementById('hearts'); h.innerHTML = "";
+        for(let i=0; i<lives; i++) h.innerHTML += '<i class="fa-solid fa-heart" style="color:var(--red); margin:0 3px; font-size:18px;"></i>';
+    }
+
+    function endGame() {
+        showScreen('end-screen');
+        document.getElementById('final-score').innerText = score + " PUAN";
+        
+        const t = document.getElementById('funny-title');
+        const m = document.getElementById('funny-msg');
+
+if(score >= 1000) {
+            t.innerText = "Sacrebleu! Magnifique!";
+            m.innerText = "Sen resmen bir Fransız asilzadesisin! Napoleon görse ayakta alkışlardı. 🇫🇷👑";
+            confetti({particleCount: 300, spread: 100});
+        } else if(score >= 700) {
+            t.innerText = "Harika! Bon Travail!";
+            m.innerText = "Paris sokaklarında elinde baget ekmeğinle kaybolmadan gezebilirsin. Bravo! 🥖🥐";
+        } else if(score >= 400) {
+            t.innerText = "Fena Değil, Pas Mal!";
+            m.innerText = "Turist rehberini yanından ayırma, bazen kafan karışıyor gibi... 🗼🗺️";
+        } else {
+            t.innerText = "Ouch! Dommage!";
+            m.innerText = "Sen en iyisi Fransa'ya gitmeden önce bir haritaya bak, yolun çok uzun dostum! 🚩🧭";
+        }
+
+        let board = JSON.parse(localStorage.getItem('fransaSkor')) || [];
+        board.push({name: pName, score: score});
+        board.sort((a,b) => b.score - a.score);
+        localStorage.setItem('fransaSkor', JSON.stringify(board.slice(0, 5)));
+
+        const list = document.getElementById('leader-list');
+        list.innerHTML = "<h3 style='margin:0'>ŞAMPİYONLAR</h3>";
+        board.slice(0,5).forEach((s, i) => {
+            list.innerHTML += `<div style="display:flex; justify-content:space-between"><span>${i+1}. ${s.name}</span> <span>${s.score}</span></div>`;
+        });
+    }
+
+    function showScreen(id) {
+        document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+        document.getElementById(id).classList.add('active');
+    }
+</script>
+</body>
+</html>
